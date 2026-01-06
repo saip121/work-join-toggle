@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Work Join Toggle</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 24px; max-width: 520px; margin: auto; }
+    .card { border: 1px solid #ddd; border-radius: 14px; padding: 18px; }
+    .row { display:flex; justify-content:space-between; align-items:center; margin-top: 14px; }
+    .status { margin-top: 16px; font-weight: 700; font-size: 18px; }
+    button { margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; background:#fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Morning Work Check</h2>
+
+  <div class="card">
+    <div> Are you joining for work today?</div>
+
+    <div class="row">
+      <div><b>Joining today</b></div>
+      <input id="toggle" type="checkbox" style="transform: scale(1.4);" />
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <button id="shareBtn">Share status</button>
+  </div>
+
+  <script>
+    const toggle = document.getElementById('toggle');
+    const status = document.getElementById('status');
+    const shareBtn = document.getElementById('shareBtn');
+
+    function render() {
+      const v = toggle.checked;
+      status.textContent = v ? "✅ YES — joining" : "❌ NO — not joining";
+      status.style.color = v ? "green" : "crimson";
+      localStorage.setItem("isJoining", v ? "1" : "0");
+    }
+
+    // Load saved value (so it doesn’t reset when reopened)
+    toggle.checked = localStorage.getItem("isJoining") === "1";
+    render();
+
+    toggle.addEventListener('change', render);
+
+    shareBtn.addEventListener('click', async () => {
+      const text = toggle.checked
+        ? "I’m joining for work today ✅"
+        : "I’m NOT joining for work today ❌";
+
+      // Works great on phones (Share sheet)
+      if (navigator.share) {
+        await navigator.share({ title: "Work status", text });
+      } else {
+        // PC fallback
+        await navigator.clipboard.writeText(text);
+        alert("Copied to clipboard:\n" + text);
+      }
+    });
+  </script>
+</body>
+</html>
