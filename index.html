@@ -5,130 +5,61 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Work Join Toggle</title>
   <style>
-    body { font-family: system-ui, Arial; padding: 24px; max-width: 720px; margin: auto; }
-    .card { border: 1px solid #ddd; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
-    .row { display:flex; justify-content:space-between; align-items:center; gap: 12px; margin-top: 14px; }
-    .status { margin-top: 12px; font-weight: 700; font-size: 18px; }
-    .small { color: #666; font-size: 13px; margin-top: 6px; }
-    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; background:#fff; cursor: pointer; }
-    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+    body { font-family: system-ui, Arial; padding: 24px; max-width: 520px; margin: auto; }
+    .card { border: 1px solid #ddd; border-radius: 14px; padding: 18px; }
+    .row { display:flex; justify-content:space-between; align-items:center; margin-top: 14px; }
+    .status { margin-top: 16px; font-weight: 700; font-size: 18px; }
+    button { margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; background:#fff; cursor: pointer; }
   </style>
 </head>
 <body>
-  <h2>Morning Work Check (Live)</h2>
+  <h2>Morning Work Check</h2>
 
   <div class="card">
-    <div><b>Choose who you are (important)</b></div>
-    <div class="small">
-      Open as friend: <code>?user=friend</code> &nbsp; | &nbsp;
-      Open as you: <code>?user=me</code>
-    </div>
-    <div class="row">
-      <button id="openFriend">Open Friend Link</button>
-      <button id="openMe">Open My Link</button>
-    </div>
-  </div>
+    <div>Is he joining for work today?</div>
 
-  <div class="card">
-    <div><b>Your toggle</b></div>
     <div class="row">
-      <div id="who"></div>
+      <div><b>Joining today</b></div>
       <input id="toggle" type="checkbox" style="transform: scale(1.4);" />
     </div>
-    <div id="myStatus" class="status"></div>
-    <div id="myTime" class="small"></div>
+
+    <div id="status" class="status"></div>
+
+    <button id="shareBtn">Share status</button>
   </div>
 
-  <div class="card">
-    <div><b>Other person’s status (live)</b></div>
-    <div id="otherStatus" class="status">Loading…</div>
-    <div id="otherTime" class="small"></div>
-  </div>
+  <script>
+    const toggle = document.getElementById('toggle');
+    const status = document.getElementById('status');
+    const shareBtn = document.getElementById('shareBtn');
 
-  <!-- Firebase (Modular SDK) -->
-  <script type="module">
-    // 1) Import Firebase modules
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import {
-      getFirestore,
-      doc,
-      setDoc,
-      onSnapshot,
-      serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"
-    // 3) Init Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // 4) Identify who is using the page (friend or me)
-    const params = new URLSearchParams(window.location.search);
-    const user = (params.get("user") || "friend").toLowerCase(); // default friend
-    const validUser = (user === "friend" || user === "me") ? user : "friend";
-
-    const whoEl = document.getElementById("who");
-    whoEl.textContent = validUser === "friend" ? "You are: FRIEND" : "You are: ME (viewer)";
-
-    // Quick buttons to generate correct links
-    const base = window.location.origin + window.location.pathname;
-    document.getElementById("openFriend").onclick = () => window.location.href = base + "?user=friend";
-    document.getElementById("openMe").onclick = () => window.location.href = base + "?user=me";
-
-    // 5) UI elements
-    const toggle = document.getElementById("toggle");
-    const myStatus = document.getElementById("myStatus");
-    const myTime = document.getElementById("myTime");
-    const otherStatus = document.getElementById("otherStatus");
-    const otherTime = document.getElementById("otherTime");
-
-    // 6) Firestore document paths
-    const myDoc = doc(db, "workStatus", validUser);
-    const otherUser = validUser === "friend" ? "me" : "friend";
-    const otherDoc = doc(db, "workStatus", otherUser);
-
-    function formatTime(ts) {
-      if (!ts) return "";
-      const d = ts.toDate();
-      return "Last updated: " + d.toLocaleString();
+    function render() {
+      const v = toggle.checked;
+      status.textContent = v ? "✅ YES — joining" : "❌ NO — not joining";
+      status.style.color = v ? "green" : "crimson";
+      localStorage.setItem("isJoining", v ? "1" : "0");
     }
 
-    function renderStatus(el, joining) {
-      if (joining === true) {
-        el.textContent = "✅ YES — joining";
-        el.style.color = "green";
-      } else if (joining === false) {
-        el.textContent = "❌ NO — not joining";
-        el.style.color = "crimson";
+    // Load saved value (so it doesn’t reset when reopened)
+    toggle.checked = localStorage.getItem("isJoining") === "1";
+    render();
+
+    toggle.addEventListener('change', render);
+
+    shareBtn.addEventListener('click', async () => {
+      const text = toggle.checked
+        ? "I’m joining for work today ✅"
+        : "I’m NOT joining for work today ❌";
+
+      // Works great on phones (Share sheet)
+      if (navigator.share) {
+        await navigator.share({ title: "Work status", text });
       } else {
-        el.textContent = "— No update yet —";
-        el.style.color = "#333";
+        // PC fallback
+        await navigator.clipboard.writeText(text);
+        alert("Copied to clipboard:\n" + text);
       }
-    }
-
-    // 7) Listen for MY status (so toggle matches database)
-    onSnapshot(myDoc, (snap) => {
-      const data = snap.exists() ? snap.data() : {};
-      const joining = data.joining;
-      toggle.checked = joining === true;
-      renderStatus(myStatus, joining);
-      myTime.textContent = formatTime(data.updatedAt);
-    });
-
-    // 8) Listen for OTHER status (live on your screen)
-    onSnapshot(otherDoc, (snap) => {
-      const data = snap.exists() ? snap.data() : {};
-      renderStatus(otherStatus, data.joining);
-      otherTime.textContent = formatTime(data.updatedAt);
-    });
-
-    // 9) When YOU toggle, write to Firestore
-    toggle.addEventListener("change", async () => {
-      await setDoc(myDoc, {
-        joining: toggle.checked,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
     });
   </script>
 </body>
 </html>
-
-
